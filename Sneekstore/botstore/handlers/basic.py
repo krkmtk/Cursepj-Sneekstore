@@ -6,5 +6,5 @@ router = Router()
 @router.message(CommandStart())
 async def cmd_start(message: types.Message) -> None:
     await message.answer(
-        "👋 Вітаю в магазині Sneekshop\n"
+        "👋 Вітаю в магазині Sneekstore\n"
     )
