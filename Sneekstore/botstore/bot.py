@@ -22,20 +22,30 @@ dp = Dispatcher()
 def get_keyboard():
     kb = [
         [
-            InlineKeyboardButton(text="В наявності", callback_data="available"),
-            InlineKeyboardButton(text="Скоро прибудуть", callback_data="coming_soon")
+            InlineKeyboardButton(text="Купити", callback_data="buy"),
+            InlineKeyboardButton(text="Аккаунт", callback_data="account")
         ],
-        [InlineKeyboardButton(text="Відгуки", callback_data="reviews")]
+        [InlineKeyboardButton(text="Розмірна сітка", callback_data="reviews")]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
+
+def get_buy_menu():
+    kb = [
+        [
+            InlineKeyboardButton(text="1", callback_data="buy_1"),
+            InlineKeyboardButton(text="2", callback_data="buy_2"),
+            InlineKeyboardButton(text="3", callback_data="buy_3")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
 
 # Обробник команди /start
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     user_id = message.from_user.id
     username = message.from_user.username or "Невідомий користувач"
-    logger.info(f"Користувач {username} (ID: {user_id}) запустил бота")
+    logger.info(f"Користувач {username} (ID: {user_id}) запустив бота")
 
     photo_filename = "Sneekstore/botstore/coverimage.jpg"
     
@@ -43,7 +53,7 @@ async def cmd_start(message: Message):
         # Надсилаємо фото з текстом і клавіатурою
         await message.answer_photo(
             photo=FSInputFile(photo_filename),
-            caption="🖐️Вітаю в магазині Sbeekstore",
+            caption="🖐️Вітаю в магазині Sneekstore",
             reply_markup=get_keyboard()
         )
     except Exception as e:
@@ -55,19 +65,31 @@ async def cmd_start(message: Message):
         )
 
 # Заглушки для обробки натискань на кнопки
-@dp.callback_query(F.data == "available")
-async def process_available(callback_query):
+@dp.callback_query(F.data == "buy")
+async def process_buy(callback_query):
     user_id = callback_query.from_user.id
     username = callback_query.from_user.username or "Невідомий користувач"
-    logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'В наявності'")
-    await callback_query.answer("Товари в наявності")
+    logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Купити'")
+    # Видаляємо повідомлення з картинкою та меню
+    await callback_query.message.delete()
+    # Надсилаємо нове меню з кнопками 1, 2, 3
+    await callback_query.message.answer(
+        "Меню покупки:",
+        reply_markup=get_buy_menu()
+    )
+    await callback_query.answer()
 
-@dp.callback_query(F.data == "coming_soon")
-async def process_coming_soon(callback_query):
+@dp.callback_query(F.data.in_(["buy_1", "buy_2", "buy_3"]))
+async def process_buy_number(callback_query):
+    number = callback_query.data.split("_")[1]
+    await callback_query.answer(f"Ви обрали {number}")
+
+@dp.callback_query(F.data == "account")
+async def process_account(callback_query):
     user_id = callback_query.from_user.id
     username = callback_query.from_user.username or "Невідомий користувач"
-    logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Скоро прибудуть'")
-    await callback_query.answer("Товари скоро прибудуть")
+    logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Аккаунт'")
+    await callback_query.answer("Ваш аккаунт")
 
 @dp.callback_query(F.data == "reviews")
 async def process_reviews(callback_query):
