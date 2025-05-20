@@ -18,6 +18,20 @@ settings = get_settings()
 bot = Bot(token=settings.bot_token)
 dp = Dispatcher()
 
+# Список брендов та моделей
+BRANDS = [
+    "Nike", "Adidas", "Puma", "Reebok", "New Balance", "Vans", "Converse"
+]
+MODELS = {
+    "Nike": ["Air Max", "Air Force", "Dunk", "Blazer", "React HyperSet"],
+    "Adidas": ["Ultraboost", "Forum", "Superstar", "Stan Smith", "Gazelle"],
+    "Puma": ["Suede", "RS-X", "Cali", "Future Rider", "Rider FV"],
+    "Reebok": ["Classic", "Club C", "Nano", "Zig Kinetica", "Floatride"],
+    "New Balance": ["574", "997", "990", "1080", "327"],
+    "Vans": ["Old Skool", "Sk8-Hi", "Authentic", "Era", "Slip-On"],
+    "Converse": ["Chuck 70", "All Star", "Run Star", "One Star", "Pro Leather"]
+}
+
 # Створення inline-клавіатури
 def get_keyboard():
     kb = [
@@ -40,6 +54,30 @@ def get_buy_menu():
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
+def get_brands_menu():
+    kb = [[InlineKeyboardButton(text=brand, callback_data=f"brand_{brand}")] for brand in BRANDS]
+    kb.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")])
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_models_menu(brand):
+    kb = [[InlineKeyboardButton(text=model, callback_data=f"model_{brand}_{model}")] for model in MODELS[brand]]
+    kb.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_brands")])
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_sizes_menu(brand, model):
+    sizes = [str(size) for size in range(36, 46)]  # розміри 36-45
+    kb = []
+    row = []
+    for i, size in enumerate(sizes, 1):
+        row.append(InlineKeyboardButton(text=size, callback_data=f"size_{brand}_{model}_{size}"))
+        if i % 5 == 0:
+            kb.append(row)
+            row = []
+    if row:
+        kb.append(row)
+    kb.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_to_models_{brand}")])
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
 # Обробник команди /start
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
@@ -49,20 +87,11 @@ async def cmd_start(message: Message):
 
     photo_filename = "Sneekstore/botstore/coverimage.jpg"
     
-    try:
-        # Надсилаємо фото з текстом і клавіатурою
-        await message.answer_photo(
-            photo=FSInputFile(photo_filename),
-            caption="🖐️Вітаю в магазині Sneekstore",
-            reply_markup=get_keyboard()
-        )
-    except Exception as e:
-        # Якщо виникла помилка (наприклад, файл не знайдено), надсилаємо лише текст
-        logger.error(f"Помилка зображення: {e}")
-        await message.answer(
-            "🖐️Вітаю в магазині Sneekstore",
-            reply_markup=get_keyboard()
-        )
+    await message.answer_photo(
+        photo=FSInputFile(photo_filename),
+        caption="🖐️Вітаю в магазині Sneekstore",
+        reply_markup=get_keyboard()
+    )
 
 # Заглушки для обробки натискань на кнопки
 @dp.callback_query(F.data == "buy")
@@ -70,12 +99,73 @@ async def process_buy(callback_query):
     user_id = callback_query.from_user.id
     username = callback_query.from_user.username or "Невідомий користувач"
     logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Купити'")
-    # Видаляємо повідомлення з картинкою та меню
     await callback_query.message.delete()
-    # Надсилаємо нове меню з кнопками 1, 2, 3
     await callback_query.message.answer(
-        "Меню покупки:",
-        reply_markup=get_buy_menu()
+        "Оберіть бренд:",
+        reply_markup=get_brands_menu()
+    )
+    await callback_query.answer()
+
+@dp.callback_query(F.data.startswith("brand_"))
+async def process_brand(callback_query):
+    brand = callback_query.data.split("_", 1)[1]
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        f"Оберіть модель {brand}:",
+        reply_markup=get_models_menu(brand)
+    )
+    await callback_query.answer()
+
+@dp.callback_query(F.data.startswith("model_"))
+async def process_model(callback_query):
+    _, brand, model = callback_query.data.split("_", 2)
+    photo_filename = f"Sneekstore/botstore/models/{brand}_{model}.jpg"
+    caption = f"Ви обрали: {brand} {model}\nОберіть розмір:"
+    try:
+        if os.path.exists(photo_filename):
+            await callback_query.message.delete()
+            await callback_query.message.answer_photo(
+                photo=FSInputFile(photo_filename),
+                caption=caption,
+                reply_markup=get_sizes_menu(brand, model)
+            )
+        else:
+            raise FileNotFoundError
+    except Exception:
+        await callback_query.message.delete()
+        await callback_query.message.answer(
+            caption,
+            reply_markup=get_sizes_menu(brand, model)
+        )
+    await callback_query.answer()
+
+@dp.callback_query(F.data.startswith("back_to_models_"))
+async def back_to_models(callback_query):
+    brand = callback_query.data.split("_", 3)[3]
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        f"Оберіть модель {brand}:",
+        reply_markup=get_models_menu(brand)
+    )
+    await callback_query.answer()
+
+@dp.callback_query(F.data == "back_to_brands")
+async def back_to_brands(callback_query):
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        "Оберіть бренд:",
+        reply_markup=get_brands_menu()
+    )
+    await callback_query.answer()
+
+@dp.callback_query(F.data == "back_to_main")
+async def back_to_main(callback_query):
+    await callback_query.message.delete()
+    photo_filename = "Sneekstore/botstore/coverimage.jpg"
+    await callback_query.message.answer_photo(
+        photo=FSInputFile(photo_filename),
+        caption="🖐️Вітаю в магазині Sneekstore",
+        reply_markup=get_keyboard()
     )
     await callback_query.answer()
 
