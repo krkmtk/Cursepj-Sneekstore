@@ -18,7 +18,7 @@ settings = get_settings()
 bot = Bot(token=settings.bot_token)
 dp = Dispatcher()
 
-# Список брендов та моделей
+# Список брендів та моделей
 BRANDS = [
     "Nike", "Adidas", "Puma", "Reebok", "New Balance", "Vans", "Converse"
 ]
@@ -39,7 +39,7 @@ def get_keyboard():
             InlineKeyboardButton(text="Купити", callback_data="buy"),
             InlineKeyboardButton(text="Аккаунт", callback_data="account")
         ],
-        [InlineKeyboardButton(text="Розмірна сітка", callback_data="reviews")]
+        [InlineKeyboardButton(text="Розмірна сітка", callback_data="sizing")]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
@@ -76,6 +76,12 @@ def get_sizes_menu(brand, model):
     if row:
         kb.append(row)
     kb.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_to_models_{brand}")])
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_sizing_menu():
+    kb = [
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
+    ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
 # Обробник команди /start
@@ -181,12 +187,19 @@ async def process_account(callback_query):
     logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Аккаунт'")
     await callback_query.answer("Ваш аккаунт")
 
-@dp.callback_query(F.data == "reviews")
-async def process_reviews(callback_query):
+@dp.callback_query(F.data == "sizing")
+async def process_sizing(callback_query):
     user_id = callback_query.from_user.id
     username = callback_query.from_user.username or "Невідомий користувач"
-    logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Відгуки'")
-    await callback_query.answer("Відгуки")
+    logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Розмірна сітка'")
+    photo_filename = "Sneekstore/botstore/sizing.jpg"
+    await callback_query.message.delete()
+    await callback_query.message.answer_photo(
+        photo=FSInputFile(photo_filename),
+        caption="Розмірна сітка",
+        reply_markup=get_sizing_menu()
+    )
+    await callback_query.answer()
 
 # Запуск бота
 async def main():
