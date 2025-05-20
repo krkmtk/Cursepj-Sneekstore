@@ -26,7 +26,7 @@ MODELS = {
     "Nike": ["Air Max", "Air Force", "Dunk", "Blazer", "React HyperSet"],
     "Adidas": ["Ultraboost", "Forum", "Superstar", "Stan Smith", "Gazelle"],
     "Puma": ["Suede", "RS-X", "Cali", "Future Rider", "Rider FV"],
-    "Reebok": ["Classic", "Club C", "Nano", "Zig Kinetica", "Floatride"],
+    "Reebok": ["Classic", "Club C", "Nano", "Zig Dynamica", "Floatride"],
     "New Balance": ["574", "997", "990", "1080", "327"],
     "Vans": ["Old Skool", "Sk8-Hi", "Authentic", "Era", "Slip-On"],
     "Converse": ["Chuck 70", "All Star", "Run Star", "One Star", "Pro Leather"]
