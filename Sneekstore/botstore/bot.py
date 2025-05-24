@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters.command import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from config import get_settings
+from help_text import HELP_TEXT
 
 # Налаштування логування
 logging.basicConfig(
@@ -39,7 +40,11 @@ def get_keyboard():
             InlineKeyboardButton(text="Купити", callback_data="buy"),
             InlineKeyboardButton(text="Аккаунт", callback_data="account")
         ],
-        [InlineKeyboardButton(text="Розмірна сітка", callback_data="sizing")]
+        [
+            InlineKeyboardButton(text="Розмірна сітка", callback_data="sizing"),
+            InlineKeyboardButton(text="Допомога", callback_data="help"),
+            InlineKeyboardButton(text="Зв'язатися з нами", callback_data="contact")
+        ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
@@ -81,6 +86,35 @@ def get_sizes_menu(brand, model):
 def get_sizing_menu():
     kb = [
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_help_menu():
+    kb = [
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_contact_menu():
+    kb = [
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_account_menu():
+    kb = [
+        [InlineKeyboardButton(text="Поповнити баланс", callback_data="topup_balance")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def get_topup_menu():
+    kb = [
+        [
+            InlineKeyboardButton(text="Поповнити криптовалютою", callback_data="topup_crypto"),
+            InlineKeyboardButton(text="Поповнити картою", callback_data="topup_card")
+        ],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="account")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
@@ -128,19 +162,25 @@ async def process_model(callback_query):
     photo_filename = f"Sneekstore/botstore/models/{brand}_{model}.jpg"
     caption = f"Ви обрали: {brand} {model}\nОберіть розмір:"
     try:
-        if os.path.exists(photo_filename):
-            await callback_query.message.delete()
+        await callback_query.message.delete()
+    except Exception:
+        pass
+    # Додаткова перевірка: чи файл існує і чи це дійсно зображення (jpg/png)
+    if os.path.exists(photo_filename) and photo_filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+        try:
             await callback_query.message.answer_photo(
                 photo=FSInputFile(photo_filename),
                 caption=caption,
                 reply_markup=get_sizes_menu(brand, model)
             )
-        else:
-            raise FileNotFoundError
-    except Exception:
-        await callback_query.message.delete()
+        except Exception:
+            await callback_query.message.answer(
+                caption + "\n\n⚠️ Не вдалося завантажити зображення. Перевірте, що файл дійсно є зображенням (jpg/png) і не пошкоджений.",
+                reply_markup=get_sizes_menu(brand, model)
+            )
+    else:
         await callback_query.message.answer(
-            caption,
+            caption + "\n\n⚠️ Не вдалося завантажити зображення. Файл не знайдено або не є зображенням.",
             reply_markup=get_sizes_menu(brand, model)
         )
     await callback_query.answer()
@@ -166,6 +206,7 @@ async def back_to_brands(callback_query):
 
 @dp.callback_query(F.data == "back_to_main")
 async def back_to_main(callback_query):
+    await callback_query.answer()
     await callback_query.message.delete()
     photo_filename = "Sneekstore/botstore/coverimage.jpg"
     await callback_query.message.answer_photo(
@@ -173,7 +214,6 @@ async def back_to_main(callback_query):
         caption="🖐️Вітаю в магазині Sneekstore",
         reply_markup=get_keyboard()
     )
-    await callback_query.answer()
 
 @dp.callback_query(F.data.in_(["buy_1", "buy_2", "buy_3"]))
 async def process_buy_number(callback_query):
@@ -185,7 +225,55 @@ async def process_account(callback_query):
     user_id = callback_query.from_user.id
     username = callback_query.from_user.username or "Невідомий користувач"
     logger.info(f"Пользователь {username} (ID: {user_id}) натиснув 'Аккаунт'")
-    await callback_query.answer("Ваш аккаунт")
+    # Фіктивні дані, замініти коли бдха буде
+    balance = 0
+    purchases = 0
+    status = "Новий користувач"
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        f"👤 <b>Ваш аккаунт</b>\n\n"
+        f"ID: <code>{user_id}</code>\n"
+        f"Username: @{username}\n"
+        f"Баланс: <b>{balance} грн</b>\n"
+        f"Кількість покупок: <b>{purchases}</b>\n"
+        f"Статус: <b>{status}</b>",
+        parse_mode="HTML",
+        reply_markup=get_account_menu()
+    )
+
+@dp.callback_query(F.data == "topup_balance")
+async def process_topup_balance(callback_query):
+    await callback_query.answer()
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        "💳 <b>Оберіть спосіб поповнення балансу:</b>",
+        parse_mode="HTML",
+        reply_markup=get_topup_menu()
+    )
+
+@dp.callback_query(F.data == "topup_crypto")
+async def process_topup_crypto(callback_query):
+    await callback_query.answer()
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        "🪙 <b>Поповнення криптовалютою</b>\n\n"
+        "Для поповнення криптовалютою зверніться до адміністратора або отримайте адресу для переказу.\n\n"
+        "<i>Після поповнення балансу протягом 30 хвилин гроші з'являться на вашому балансі.</i>",
+        parse_mode="HTML",
+        reply_markup=get_topup_menu()
+    )
+
+@dp.callback_query(F.data == "topup_card")
+async def process_topup_card(callback_query):
+    await callback_query.answer()
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        "💳 <b>Поповнення картою</b>\n\n"
+        "Для поповнення картою скористайтесь інструкціями на сайті або зверніться до адміністратора.\n\n"
+        "<i>Після поповнення балансу протягом 30 хвилин гроші з'являться на вашому балансі.</i>",
+        parse_mode="HTML",
+        reply_markup=get_topup_menu()
+    )
 
 @dp.callback_query(F.data == "sizing")
 async def process_sizing(callback_query):
@@ -200,6 +288,25 @@ async def process_sizing(callback_query):
         reply_markup=get_sizing_menu()
     )
     await callback_query.answer()
+
+@dp.callback_query(F.data == "help")
+async def process_help(callback_query):
+    await callback_query.answer()
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        HELP_TEXT,
+        reply_markup=get_help_menu(),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data == "contact")
+async def process_contact(callback_query):
+    await callback_query.answer()
+    await callback_query.message.answer(
+        "📞 <b>Зв'язатися з нами</b>\n\nНапишіть нам у Telegram: @vktrysn",
+        parse_mode="HTML",
+        reply_markup=get_contact_menu()
+    )
 
 # Запуск бота
 async def main():
